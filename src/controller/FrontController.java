@@ -76,7 +76,9 @@ public class FrontController extends HttpServlet {
                         response.getWriter().println("<h1>Return Value:</h1>");
                         response.getWriter().println("<pre>" + retour.toString() + "</pre>");
                         response.getWriter().println("</body></html>");
-                    } else {
+                    } else if (retour != null && retour.getClass() == ModelVue.class) {
+                        request.getRequestDispatcher(((ModelVue) retour).getView()).forward(request, response);
+                    } else { 
                         response.getWriter().println("<html><body>");
                         response.getWriter().println("<h1>No Return Value</h1>");
                         response.getWriter().println("</body></html>");
