@@ -5,9 +5,34 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.ServletException;
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.List;
+import src.classe.Scan;
+import src.annotation.*;
+
 
 
 public class FrontController extends HttpServlet {
+    @Override
+    public void init() throws ServletException {
+        Scan scan = new Scan(Controller.class);
+        HashMap <String, Object> controllers = new HashMap<>();
+        try {
+            List<Class<?>> classesAnnotated = scan.getClassesAnnotatedWith();
+            for (Class<?> c : classesAnnotated) {
+                Method[] listeMethods = c.getDeclaredMethods();
+                for (Method m : listeMethods) {
+                    if (m.isAnnotationPresent(Url.class)) {
+                        controllers.put(m.getAnnotation(Url.class).value(), m);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("text/html");
@@ -21,7 +46,7 @@ public class FrontController extends HttpServlet {
             
             return;
         } else {
-            response.getWriter().println("<html><body>");
+            response.getWriter  ().println("<html><body>");
             response.getWriter().println("<h1>Path: " + path + "</h1>");
             response.getWriter().println("</body></html>");
         }
