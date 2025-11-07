@@ -3,7 +3,6 @@ package src.controller;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import java.io.IOException;
@@ -59,8 +58,6 @@ public class FrontController extends HttpServlet {
             response.getWriter().println("<h1>Path: " + path + "</h1>");
             response.getWriter().println("</body></html>");
 
-            
-
             if (routesMap.containsKey(path)) {
                 Route route = (Route) routesMap.get(path);
                 
@@ -72,8 +69,22 @@ public class FrontController extends HttpServlet {
                     response.getWriter().println("<h1>Method: " + method.getName() + "</h1>");
                     response.getWriter().println("</body></html>");
 
-                    // method.invoke(controllerInstance, request, response);
+                    
+                    Object retour = method.invoke(controllerInstance);
+                    if (retour != null && retour.getClass() == String.class) {
+                        response.getWriter().println("<html><body>");
+                        response.getWriter().println("<h1>Return Value:</h1>");
+                        response.getWriter().println("<pre>" + retour.toString() + "</pre>");
+                        response.getWriter().println("</body></html>");
+                    } else {
+                        response.getWriter().println("<html><body>");
+                        response.getWriter().println("<h1>No Return Value</h1>");
+                        response.getWriter().println("</body></html>");
+                    }
                 } catch (Exception e) {
+                    response.getWriter().println("<html><body>");
+                    response.getWriter().println("<h1>Ca marche pas: " + e.getMessage() + "</h1>");
+                    response.getWriter().println("</body></html>");
                     e.printStackTrace();
                 }
             } else {
