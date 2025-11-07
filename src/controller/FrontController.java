@@ -69,11 +69,8 @@ public class FrontController extends HttpServlet {
                     response.getWriter().println("<h1>Method: " + method.getName() + "</h1>");
                     response.getWriter().println("</body></html>");
 
-                    response.getWriter().println("<html><body>");
-                    response.getWriter().println("<h1>++++ Teste +++++++ </h1>");
-                    response.getWriter().println("</body></html>");
-
-                    Object retour = method.invoke(controllerInstance, request, response);
+                    
+                    Object retour = method.invoke(controllerInstance);
                     if (retour != null && retour.getClass() == String.class) {
                         response.getWriter().println("<html><body>");
                         response.getWriter().println("<h1>Return Value:</h1>");
@@ -85,6 +82,9 @@ public class FrontController extends HttpServlet {
                         response.getWriter().println("</body></html>");
                     }
                 } catch (Exception e) {
+                    response.getWriter().println("<html><body>");
+                    response.getWriter().println("<h1>Ca marche pas: " + e.getMessage() + "</h1>");
+                    response.getWriter().println("</body></html>");
                     e.printStackTrace();
                 }
             } else {
