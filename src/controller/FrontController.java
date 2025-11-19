@@ -34,6 +34,7 @@ public class FrontController extends HttpServlet {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        // Print la liste des URLs dans le map setup
         ServletContext context = getServletContext();
         context.setAttribute("routesMap", controllers);
     }
@@ -52,7 +53,6 @@ public class FrontController extends HttpServlet {
 
         if (resources) {
             getServletContext().getNamedDispatcher("default").forward(request, response);
-            
             return;
         } else {
             response.getWriter  ().println("<html><body>");
@@ -61,43 +61,58 @@ public class FrontController extends HttpServlet {
 
             if (routesMap.containsKey(path)) {
                 Route route = (Route) routesMap.get(path);
-                
-                try {
-                    Method method = route.getMethod();
-                    Object controllerInstance = route.getControllerInstance();
-                    response.getWriter().println("<html><body>");
-                    response.getWriter().println("<h1>Controller: " + controllerInstance.getClass().getName() + "</h1>");
-                    response.getWriter().println("<h1>Method: " + method.getName() + "</h1>");
-                    response.getWriter().println("</body></html>");
-
-                    
-                    Object retour = method.invoke(controllerInstance);
-                    if (retour != null && retour.getClass() == String.class) {
-                        response.getWriter().println("<html><body>");
-                        response.getWriter().println("<h1>Return Value:</h1>");
-                        response.getWriter().println("<pre>" + retour.toString() + "</pre>");
-                        response.getWriter().println("</body></html>");
-                    } else if (retour != null && retour.getClass() == ModelVue.class) {
-                        for (String cle : ((ModelVue) retour).getData().keySet()) {
-                            request.setAttribute(cle, ((ModelVue) retour).getData().get(cle));
-                        }
-                        request.getRequestDispatcher(((ModelVue) retour).getView()).forward(request, response); 
-                    } else { 
-                        response.getWriter().println("<html><body>");
-                        response.getWriter().println("<h1>No Return Value</h1>");
-                        response.getWriter().println("</body></html>");
-                    }
-                } catch (Exception e) {
-                    response.getWriter().println("<html><body>");
-                    response.getWriter().println("<h1>Ca marche pas: " + e.getMessage() + "</h1>");
-                    response.getWriter().println("</body></html>");
-                    e.printStackTrace();
-                }
+                execute(route, request, response);  
+                return;
             } else {
+                String pathNettoye = path.replaceAll("/[^/]+$", "/");
+                // Affiche le chemin nettoyé dans la réponse HTML pour le voir dans le navigateur
+                String regex = pathNettoye+"\\{[^/]+}$";
+                for (String key : routesMap.keySet()) {
+                    if (key.matches(regex)) {
+                        System.out.println("Matched: " + key);
+                        Route route = (Route) routesMap.get(key);
+                        execute(route, request, response);
+                        return;
+                    }
+                }
                 response.getWriter().println("<html><body>");
                 response.getWriter().println("<h1>404 Not Found</h1>");
                 response.getWriter().println("</body></html>");
             }
         }
-    }    
+    }  
+    
+    public void execute(Route route, HttpServletRequest request, HttpServletResponse response) throws IOException {
+        try {
+            Method method = route.getMethod();
+            Object controllerInstance = route.getControllerInstance();
+            response.getWriter().println("<html><body>");
+            response.getWriter().println("<h1>Controller: " + controllerInstance.getClass().getName() + "</h1>");
+            response.getWriter().println("<h1>Method: " + method.getName() + "</h1>");
+            response.getWriter().println("</body></html>");
+
+                    
+            Object retour = method.invoke(controllerInstance);
+            if (retour != null && retour.getClass() == String.class) {
+                response.getWriter().println("<html><body>");
+                response.getWriter().println("<h1>Return Value:</h1>");
+                response.getWriter().println("<pre>" + retour.toString() + "</pre>");
+                response.getWriter().println("</body></html>");
+            } else if (retour != null && retour.getClass() == ModelVue.class) {
+                for (String cle : ((ModelVue) retour).getData().keySet()) {
+                    request.setAttribute(cle, ((ModelVue) retour).getData().get(cle));
+                }
+                request.getRequestDispatcher(((ModelVue) retour).getView()).forward(request, response); 
+            } else { 
+                response.getWriter().println("<html><body>");
+                response.getWriter().println("<h1>No Return Value</h1>");
+                response.getWriter().println("</body></html>");
+            }
+        } catch (Exception e) {
+            response.getWriter().println("<html><body>");
+            response.getWriter().println("<h1>Ca marche pas: " + e.getMessage() + "</h1>");
+            response.getWriter().println("</body></html>");
+            e.printStackTrace();
+        }
+    }
 }
