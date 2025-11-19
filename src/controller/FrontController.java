@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
+
 import src.classe.*;
 import src.annotation.*;
 
@@ -77,7 +78,10 @@ public class FrontController extends HttpServlet {
                         response.getWriter().println("<pre>" + retour.toString() + "</pre>");
                         response.getWriter().println("</body></html>");
                     } else if (retour != null && retour.getClass() == ModelVue.class) {
-                        request.getRequestDispatcher(((ModelVue) retour).getView()).forward(request, response);
+                        for (String cle : ((ModelVue) retour).getData().keySet()) {
+                            request.setAttribute(cle, ((ModelVue) retour).getData().get(cle));
+                        }
+                        request.getRequestDispatcher(((ModelVue) retour).getView()).forward(request, response); 
                     } else { 
                         response.getWriter().println("<html><body>");
                         response.getWriter().println("<h1>No Return Value</h1>");
