@@ -6,9 +6,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import java.io.IOException;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import src.classe.*;
 import src.annotation.*;
@@ -41,7 +42,7 @@ public class FrontController extends HttpServlet {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("text/html");
         
         ServletContext context = getServletContext();
@@ -91,14 +92,31 @@ public class FrontController extends HttpServlet {
             response.getWriter().println("<h1>Method: " + method.getName() + "</h1>");
             response.getWriter().println("</body></html>");
 
+            Object retour = null;
+            if (method.getParameters().length > 0) {
+                int index = 0;
+                Object[] args = new Object[method.getParameters().length];
+                for (Parameter param : method.getParameters()) {
+                    Typation typation = new Typation(request.getParameter(param.getName()), param.getType());
+                    args[index] = typation.getTypedValue();
+                    index++;
+                }
+                retour = method.invoke(controllerInstance, args);
+            } else {
+                retour = method.invoke(controllerInstance);
+            }
+            
                     
-            Object retour = method.invoke(controllerInstance);
+            // Object retour = method.invoke(controllerInstance, args);
             if (retour != null && retour.getClass() == String.class) {
                 response.getWriter().println("<html><body>");
                 response.getWriter().println("<h1>Return Value:</h1>");
                 response.getWriter().println("<pre>" + retour.toString() + "</pre>");
                 response.getWriter().println("</body></html>");
             } else if (retour != null && retour.getClass() == ModelVue.class) {
+                if (((ModelVue) retour).getView().isEmpty()) {
+                    throw new Exception("View name is null or empty");
+                }
                 for (String cle : ((ModelVue) retour).getData().keySet()) {
                     request.setAttribute(cle, ((ModelVue) retour).getData().get(cle));
                 }
