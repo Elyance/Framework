@@ -62,6 +62,7 @@ public class FrontController extends HttpServlet {
                 execute(route, request, response);  
                 return;
             } else {
+                String removedValue = path.replaceAll(".*/([^/]+)$", "$1");
                 String pathNettoye = path.replaceAll("/[^/]+$", "/");
                 // Affiche le chemin nettoyé dans la réponse HTML pour le voir dans le navigateur
                 String regex = pathNettoye+"\\{[^/]+}$";
@@ -69,6 +70,9 @@ public class FrontController extends HttpServlet {
                     if (key.matches(regex)) {
                         System.out.println("Matched: " + key);
                         Route route = (Route) routesMap.get(key);
+                        if (removedValue != null) {
+                            route.setArg(removedValue);
+                        }
                         execute(route, request, response);
                         return;
                     }
@@ -91,20 +95,25 @@ public class FrontController extends HttpServlet {
 
             Object retour = null;
             if (method.getParameters().length > 0) {
-                int index = 0;
-                Object[] args = new Object[method.getParameters().length];
-                for (Parameter param : method.getParameters()) {
-                    Typation typation;
-                    Request requestAnnotation = param.getAnnotation(Request.class);
-                    if (requestAnnotation != null) {
-                        typation = new Typation(request.getParameter(requestAnnotation.value()), param.getType());
-                    } else {
-                        typation = new Typation(request.getParameter(param.getName()), param.getType());
+                if (route.getArg() != null) {
+                    Typation typation = new Typation(route.getArg(), method.getParameters()[0].getType());
+                    retour = method.invoke(controllerInstance, typation.getTypedValue());
+                } else {
+                    int index = 0;
+                    Object[] args = new Object[method.getParameters().length];
+                    for (Parameter param : method.getParameters()) {
+                        Typation typation;
+                        Request requestAnnotation = param.getAnnotation(Request.class);
+                        if (requestAnnotation != null) {
+                            typation = new Typation(request.getParameter(requestAnnotation.value()), param.getType());
+                        } else {
+                            typation = new Typation(request.getParameter(param.getName()), param.getType());
+                        }
+                        args[index] = typation.getTypedValue();
+                        index++;
                     }
-                    args[index] = typation.getTypedValue();
-                    index++;
+                    retour = method.invoke(controllerInstance, args);
                 }
-                retour = method.invoke(controllerInstance, args);
             } else {
                 retour = method.invoke(controllerInstance);
             }
