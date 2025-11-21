@@ -9,12 +9,9 @@ import java.io.IOException;
 import java.lang.reflect.*;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import src.classe.*;
 import src.annotation.*;
-
-
 
 public class FrontController extends HttpServlet {
     @Override
@@ -97,7 +94,13 @@ public class FrontController extends HttpServlet {
                 int index = 0;
                 Object[] args = new Object[method.getParameters().length];
                 for (Parameter param : method.getParameters()) {
-                    Typation typation = new Typation(request.getParameter(param.getName()), param.getType());
+                    Typation typation;
+                    Request requestAnnotation = param.getAnnotation(Request.class);
+                    if (requestAnnotation != null) {
+                        typation = new Typation(request.getParameter(requestAnnotation.value()), param.getType());
+                    } else {
+                        typation = new Typation(request.getParameter(param.getName()), param.getType());
+                    }
                     args[index] = typation.getTypedValue();
                     index++;
                 }
