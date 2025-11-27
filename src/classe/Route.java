@@ -6,10 +6,18 @@ public class Route {
     private Object controllerInstance;
     private Method method;
     private String arg;
+    private String methodeHttp;
 
-    public Route(Object controllerInstance, Method method) {
+    public Route(Object controllerInstance, Method method, String methodeHttp) {
         this.controllerInstance = controllerInstance;
         this.method = method;
+        this.methodeHttp = methodeHttp;
+    }
+    public String getMethodeHttp() {
+        return methodeHttp;
+    }
+    public void setMethodeHttp(String methodeHttp) {
+        this.methodeHttp = methodeHttp;
     }
 
     public Object getControllerInstance() {

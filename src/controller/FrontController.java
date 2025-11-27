@@ -7,8 +7,7 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.lang.reflect.*;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 import src.classe.*;
 import src.annotation.*;
@@ -17,15 +16,24 @@ public class FrontController extends HttpServlet {
     @Override
     public void init() throws ServletException {
         Scan scan = new Scan(Controller.class);
-        HashMap <String, Object> controllers = new HashMap<>();
+        HashMap <String, List<Route>> controllers = new HashMap<>();
         try {
             List<Class<?>> classesAnnotated = scan.getClassesAnnotatedWith();
             for (Class<?> c : classesAnnotated) {
                 Object controllerInstance = c.getDeclaredConstructor().newInstance();
                 Method[] listeMethods = c.getDeclaredMethods();
                 for (Method m : listeMethods) {
-                    if (m.isAnnotationPresent(Url.class)) {
-                        controllers.put(m.getAnnotation(Url.class).value(), new Route(controllerInstance, m));
+                    if (m.isAnnotationPresent(Url.class) ) {
+                        String httpMethod = ""; // Default HTTP method
+                        if (m.isAnnotationPresent(Get.class)) {
+                            httpMethod = "GET";
+                        } else if (m.isAnnotationPresent(Post.class)) {
+                            httpMethod = "POST";
+                        }
+                        if (controllers.get(m.getAnnotation(Url.class).value()) == null) {
+                            controllers.put(m.getAnnotation(Url.class).value(), new ArrayList<>());
+                        }
+                        controllers.get(m.getAnnotation(Url.class).value()).add(new Route(controllerInstance, m, httpMethod));
                     }
                 }
             }
@@ -41,46 +49,64 @@ public class FrontController extends HttpServlet {
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("text/html");
-        
-        ServletContext context = getServletContext();
-        HashMap<String,Object> routesMap=(HashMap<String,Object>) context.getAttribute("routesMap");
+        try {
+            ServletContext context = getServletContext();
+            HashMap<String,Object> routesMap=(HashMap<String,Object>) context.getAttribute("routesMap");
 
-        String path = request.getRequestURI().substring(request.getContextPath().length());
+            String path = request.getRequestURI().substring(request.getContextPath().length());
 
-        boolean resources = getServletContext().getResource(path) != null;
+            boolean resources = getServletContext().getResource(path) != null;
 
-        if (resources) {
-            getServletContext().getNamedDispatcher("default").forward(request, response);
-            return;
-        } else {
-            response.getWriter  ().println("<html><body>");
-            response.getWriter().println("<h1>Path: " + path + "</h1>");
-            response.getWriter().println("</body></html>");
-
-            if (routesMap.containsKey(path)) {
-                Route route = (Route) routesMap.get(path);
-                execute(route, request, response);  
+            if (resources) {
+                getServletContext().getNamedDispatcher("default").forward(request, response);
                 return;
             } else {
-                String removedValue = path.replaceAll(".*/([^/]+)$", "$1");
-                String pathNettoye = path.replaceAll("/[^/]+$", "/");
-                // Affiche le chemin nettoyé dans la réponse HTML pour le voir dans le navigateur
-                String regex = pathNettoye+"\\{[^/]+}$";
-                for (String key : routesMap.keySet()) {
-                    if (key.matches(regex)) {
-                        System.out.println("Matched: " + key);
-                        Route route = (Route) routesMap.get(key);
-                        if (removedValue != null) {
-                            route.setArg(removedValue);
-                        }
-                        execute(route, request, response);
-                        return;
-                    }
-                }
                 response.getWriter().println("<html><body>");
-                response.getWriter().println("<h1>404 Not Found</h1>");
+                response.getWriter().println("<h1>Path: " + path + "</h1>");
                 response.getWriter().println("</body></html>");
+
+                if (routesMap.containsKey(path)) {
+                    
+                    List<Route> routes = (List<Route>) routesMap.get(path);
+                    for (Route route : routes) {
+                        if (route.getMethodeHttp().equalsIgnoreCase(request.getMethod())) {
+                            execute(route, request, response);
+                            return;
+                        }
+                    }
+                    response.getWriter().println("<html><body>");
+                    response.getWriter().println("<h1>Method "+  request.getMethod() +" Not Allowed</h1>");
+                    response.getWriter().println("</body></html>");
+                } else {
+                    String removedValue = path.replaceAll(".*/([^/]+)$", "$1");
+                    String pathNettoye = path.replaceAll("/[^/]+$", "/");
+                    // Affiche le chemin nettoyé dans la réponse HTML pour le voir dans le navigateur
+                    String regex = pathNettoye+"\\{[^/]+}$";
+                    for (String key : routesMap.keySet()) {
+                        if (key.matches(regex)) {
+                            System.out.println("Matched: " + key);
+                            List<Route> routes = (List<Route>) routesMap.get(key);
+                            for (Route route : routes) {
+                                if (route.getMethodeHttp().equalsIgnoreCase(request.getMethod())) {
+                                    Route r = route;
+                                    if (removedValue != null) {
+                                        r.setArg(removedValue);
+                                    }
+                                    execute(r, request, response);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    response.getWriter().println("<html><body>");
+                    response.getWriter().println("<h1>Path Not Found</h1>");
+                    response.getWriter().println("</body></html>");
+                }
             }
+        } catch (Exception e) {
+            response.getWriter().println("<html><body>");
+            response.getWriter().println("<h1>Erreur interne du serveur + " + e.getMessage() + " </h1>");
+            response.getWriter().println("</body></html>");
         }
     }  
     
