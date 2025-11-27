@@ -41,46 +41,51 @@ public class FrontController extends HttpServlet {
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("text/html");
-        
-        ServletContext context = getServletContext();
-        HashMap<String,Object> routesMap=(HashMap<String,Object>) context.getAttribute("routesMap");
+        try {
+            ServletContext context = getServletContext();
+            HashMap<String,Object> routesMap=(HashMap<String,Object>) context.getAttribute("routesMap");
 
-        String path = request.getRequestURI().substring(request.getContextPath().length());
+            String path = request.getRequestURI().substring(request.getContextPath().length());
 
-        boolean resources = getServletContext().getResource(path) != null;
+            boolean resources = getServletContext().getResource(path) != null;
 
-        if (resources) {
-            getServletContext().getNamedDispatcher("default").forward(request, response);
-            return;
-        } else {
-            response.getWriter  ().println("<html><body>");
-            response.getWriter().println("<h1>Path: " + path + "</h1>");
-            response.getWriter().println("</body></html>");
-
-            if (routesMap.containsKey(path)) {
-                Route route = (Route) routesMap.get(path);
-                execute(route, request, response);  
+            if (resources) {
+                getServletContext().getNamedDispatcher("default").forward(request, response);
                 return;
             } else {
-                String removedValue = path.replaceAll(".*/([^/]+)$", "$1");
-                String pathNettoye = path.replaceAll("/[^/]+$", "/");
-                // Affiche le chemin nettoyé dans la réponse HTML pour le voir dans le navigateur
-                String regex = pathNettoye+"\\{[^/]+}$";
-                for (String key : routesMap.keySet()) {
-                    if (key.matches(regex)) {
-                        System.out.println("Matched: " + key);
-                        Route route = (Route) routesMap.get(key);
-                        if (removedValue != null) {
-                            route.setArg(removedValue);
-                        }
-                        execute(route, request, response);
-                        return;
-                    }
-                }
-                response.getWriter().println("<html><body>");
-                response.getWriter().println("<h1>404 Not Found</h1>");
+                response.getWriter  ().println("<html><body>");
+                response.getWriter().println("<h1>Path: " + path + "</h1>");
                 response.getWriter().println("</body></html>");
+
+                if (routesMap.containsKey(path)) {
+                    Route route = (Route) routesMap.get(path);
+                    execute(route, request, response);  
+                    return;
+                } else {
+                    String removedValue = path.replaceAll(".*/([^/]+)$", "$1");
+                    String pathNettoye = path.replaceAll("/[^/]+$", "/");
+                    // Affiche le chemin nettoyé dans la réponse HTML pour le voir dans le navigateur
+                    String regex = pathNettoye+"\\{[^/]+}$";
+                    for (String key : routesMap.keySet()) {
+                        if (key.matches(regex)) {
+                            System.out.println("Matched: " + key);
+                            Route route = (Route) routesMap.get(key);
+                            if (removedValue != null) {
+                                route.setArg(removedValue);
+                            }
+                            execute(route, request, response);
+                            return;
+                        }
+                    }
+                    response.getWriter().println("<html><body>");
+                    response.getWriter().println("<h1>Path Not Found</h1>");
+                    response.getWriter().println("</body></html>");
+                }
             }
+        } catch (Exception e) {
+            response.getWriter().println("<html><body>");
+            response.getWriter().println("<h1>Erreur interne du serveur + " + e.getMessage() + " </h1>");
+            response.getWriter().println("</body></html>");
         }
     }  
     
