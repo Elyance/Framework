@@ -124,6 +124,23 @@ public class FrontController extends HttpServlet {
                 if (route.getArg() != null) {
                     Typation typation = new Typation(route.getArg(), method.getParameters()[0].getType());
                     retour = method.invoke(controllerInstance, typation.getTypedValue());
+                } else if (method.getParameters().length == 1) {
+                    Parameter param = method.getParameters()[0];
+                    // response.getWriter().println("<html><body>");
+                    // response.getWriter().println("<h1>Methode Param: " + param.getName() + "</h1>");
+                    // response.getWriter().println("<h1>Methode Param: " + param.getType().getName() + "</h1>");
+                    // response.getWriter().println("</body></html>");
+                    if (param.getType().equals(Map.class)) {
+                        Map<String, Object> paramMap = new HashMap<>();
+                        Enumeration<String> parameterNames = request.getParameterNames();
+                        while (parameterNames.hasMoreElements()) {
+                            String paramName = parameterNames.nextElement();
+                            paramMap.put(paramName, request.getParameter(paramName));
+                        }
+                        retour = method.invoke(controllerInstance, paramMap);
+                    } else {
+                        throw new Exception("Cette methode n'a pas de parametre de type HashMap");
+                    }
                 } else {
                     int index = 0;
                     Object[] args = new Object[method.getParameters().length];
