@@ -167,17 +167,17 @@ public class FrontController extends HttpServlet {
                             args[index] = typation.getTypedValue();
                         // s'il est pas annote
                         } else {
-                            if (!param.getType().isPrimitive()) {
+                            if (param.getType() == String.class || param.getType().isPrimitive() || isWrapperType(param.getType())) {
+                                typation = new Typation(request.getParameter(param.getName()), param.getType());
+                                args[index] = typation.getTypedValue();
+                            } else {
+                                // Sinon c'est un objet, utiliser convertObject
                                 response.getWriter().println("<html><body>");
                                 response.getWriter().println("<h1>Controller c'est un objet</h1>");
-                                // response.getWriter().println("<h1>Method: " + method.getName() + "</h1>");
                                 response.getWriter().println("</body></html>");
                                 Param p = new Param(param.getName(), param.getType());
                                 Object obj = convertObject(p, request);
                                 args[index] = obj;
-                            } else {
-                                typation = new Typation(request.getParameter(param.getName()), param.getType());
-                                args[index] = typation.getTypedValue();
                             }
                         }
                         index++;
