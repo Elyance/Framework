@@ -73,9 +73,9 @@ public class FrontController extends HttpServlet {
 
     public void gererPath(String path, HashMap<String,Object> routesMap, HttpServletRequest request, HttpServletResponse response) throws IOException{
         try {
-            response.getWriter().println("<html><body>");
-            response.getWriter().println("<h1>Path: " + path + "</h1>");
-            response.getWriter().println("</body></html>");
+            // response.getWriter().println("<html><body>");
+            // response.getWriter().println("<h1>Path: " + path + "</h1>");
+            // response.getWriter().println("</body></html>");
 
                 // si le path existe (genre egale, exemple: "/hello")  dans le map des routes on execute la methode associee
             if (routesMap.containsKey(path)) {
@@ -133,10 +133,16 @@ public class FrontController extends HttpServlet {
         try {
             Method method = route.getMethod();
             Object controllerInstance = route.getControllerInstance();
-            response.getWriter().println("<html><body>");
-            response.getWriter().println("<h1>Controller: " + controllerInstance.getClass().getName() + "</h1>");
-            response.getWriter().println("<h1>Method: " + method.getName() + "</h1>");
-            response.getWriter().println("</body></html>");
+            
+            // Vérifier si la méthode est annotée avec @Json
+            boolean isJsonMethod = method.isAnnotationPresent(Json.class);
+            
+            if (!isJsonMethod) {
+                // response.getWriter().println("<html><body>");
+                // response.getWriter().println("<h1>Controller: " + controllerInstance.getClass().getName() + "</h1>");
+                // response.getWriter().println("<h1>Method: " + method.getName() + "</h1>");
+                // response.getWriter().println("</body></html>");
+            }
 
             Object retour = null;
             // s'il y a des parametres dans la methode
@@ -172,9 +178,11 @@ public class FrontController extends HttpServlet {
                                 args[index] = typation.getTypedValue();
                             } else {
                                 // Sinon c'est un objet, utiliser convertObject
-                                response.getWriter().println("<html><body>");
-                                response.getWriter().println("<h1>Controller c'est un objet</h1>");
-                                response.getWriter().println("</body></html>");
+                                if (!isJsonMethod) {
+                                    // response.getWriter().println("<html><body>");
+                                    // response.getWriter().println("<h1>Controller c'est un objet</h1>");
+                                    // response.getWriter().println("</body></html>");
+                                }
                                 Param p = new Param(param.getName(), param.getType());
                                 Object obj = convertObject(p, request);
                                 args[index] = obj;
@@ -190,33 +198,46 @@ public class FrontController extends HttpServlet {
                 retour = method.invoke(controllerInstance);
             }
 
-            // Object retour = method.invoke(controllerInstance, args);
-            // si le retour est une chaine de caractere on l'affiche directement
-            if (retour != null && retour.getClass() == String.class) {
-                response.getWriter().println("<html><body>");
-                response.getWriter().println("<h1>Return Value:</h1>");
-                response.getWriter().println("<pre>" + retour.toString() + "</pre>");
-                response.getWriter().println("</body></html>");
-            // si le retour est un ModelVue on set les attributs et on fait un forward vers la vue
-            } else if (retour != null && retour.getClass() == ModelVue.class) {
-                if (((ModelVue) retour).getView().isEmpty()) {
-                    throw new Exception("View name is null or empty");
+            // Gestion du retour en fonction de l'annotation @Json
+            if (isJsonMethod) {
+                response.setContentType("application/json");
+                String jsonResponse = JsonConverter.createJsonResponse("success", retour);
+                response.getWriter().print(jsonResponse);
+            } else {
+                // Comportement original pour HTML
+                // si le retour est une chaine de caractere on l'affiche directement
+                if (retour != null && retour.getClass() == String.class) {
+                    response.getWriter().println("<html><body>");
+                    response.getWriter().println("<h1>Return Value:</h1>");
+                    response.getWriter().println("<pre>" + retour.toString() + "</pre>");
+                    response.getWriter().println("</body></html>");
+                // si le retour est un ModelVue on set les attributs et on fait un forward vers la vue
+                } else if (retour != null && retour.getClass() == ModelVue.class) {
+                    if (((ModelVue) retour).getView().isEmpty()) {
+                        throw new Exception("View name is null or empty");
+                    }
+                    for (String cle : ((ModelVue) retour).getData().keySet()) {
+                        request.setAttribute(cle, ((ModelVue) retour).getData().get(cle));
+                    }
+                    request.getRequestDispatcher(((ModelVue) retour).getView()).forward(request, response); 
+                } else { 
+                    response.getWriter().println("<html><body>");
+                    response.getWriter().println("<h1>No Return Value</h1>");
+                    response.getWriter().println("</body></html>");
                 }
-                for (String cle : ((ModelVue) retour).getData().keySet()) {
-                    request.setAttribute(cle, ((ModelVue) retour).getData().get(cle));
-                }
-                request.getRequestDispatcher(((ModelVue) retour).getView()).forward(request, response); 
-            } else { 
-                response.getWriter().println("<html><body>");
-                response.getWriter().println("<h1>No Return Value</h1>");
-                response.getWriter().println("</body></html>");
             }
         } catch (Exception e) {
-            response.getWriter().println("<html><body>");
-            response.getWriter().println("<h1>Ca marche pas: " + e.getMessage() + "</h1>");
-            response.getWriter().println("</body></html>");
-            e.printStackTrace();
-        
+            boolean isJsonMethod = route.getMethod().isAnnotationPresent(Json.class);
+            if (isJsonMethod) {
+                response.setContentType("application/json");
+                String jsonError = JsonConverter.createJsonError("error", e.getMessage());
+                response.getWriter().print(jsonError);
+            } else {
+                response.getWriter().println("<html><body>");
+                response.getWriter().println("<h1>Ca marche pas: " + e.getMessage() + "</h1>");
+                response.getWriter().println("</body></html>");
+                e.printStackTrace();
+            }
         }
     }
 
