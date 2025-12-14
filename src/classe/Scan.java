@@ -3,6 +3,7 @@ package src.classe;
 import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Type;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -53,6 +54,28 @@ public class Scan {
                 }
             }
         }
+    }
+
+    public static boolean isPrimitif(Type type) {
+        if (type == String.class || type == Integer.class || type == int.class || type == Long.class
+                || type == long.class || type == Double.class || type == double.class || type == Float.class
+                || type == float.class || type == Boolean.class || type == boolean.class || type == Byte.class
+                || type == byte.class || type == Short.class || type == short.class || type == Character.class
+                || type == char.class) {
+            return true;
+        }
+        return false;
+    }
+
+    public static void main(String[] args) {
+        Route r = new Route(args, null, null);
+        String teste="hello";
+        if (isPrimitif(teste.getClass())) {
+            System.out.println("okey, c'est primitif");
+        } else {
+            System.out.println("nope, c'est pas primitif");
+        }
+
     }
 
 }

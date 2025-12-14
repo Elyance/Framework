@@ -37,8 +37,9 @@ public class Typation {
             return Long.valueOf(value);
         } else if (type == Float.class || type == float.class) {
             return Float.valueOf(value);
-        }
+        } 
         // Pour les autres types, retourner la valeur String par défaut
         return value;
     }
+
 }
