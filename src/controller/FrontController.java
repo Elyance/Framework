@@ -1,10 +1,10 @@
 package src.controller;
 
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
+import jakarta.servlet.http.*;
+import jakarta.servlet.annotation.*;
+import jakarta.servlet.*;
+
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.*;
 import java.util.*;
@@ -12,6 +12,7 @@ import java.util.*;
 import src.classe.*;
 import src.annotation.*;
 
+@MultipartConfig
 public class FrontController extends HttpServlet {
     @Override
     public void init() throws ServletException {
@@ -129,6 +130,7 @@ public class FrontController extends HttpServlet {
 
     // ici on execute la methode du controller associee a la route
     @SuppressWarnings("unused")
+    
     public void execute(Route route, HttpServletRequest request, HttpServletResponse response) throws IOException {
         try {
             Method method = route.getMethod();
@@ -167,6 +169,8 @@ public class FrontController extends HttpServlet {
                     for (Parameter param : method.getParameters()) {
                         Typation typation;
                         Request requestAnnotation = param.getAnnotation(Request.class);
+                        // s'il est pas de type map qui demande un Path et un Byte
+                        
                         // s'il est annote
                         if (requestAnnotation != null) {
                             typation = new Typation(request.getParameter(requestAnnotation.value()), param.getType());
@@ -176,6 +180,69 @@ public class FrontController extends HttpServlet {
                             if (param.getType() == String.class || param.getType().isPrimitive() || isWrapperType(param.getType())) {
                                 typation = new Typation(request.getParameter(param.getName()), param.getType());
                                 args[index] = typation.getTypedValue();
+                            } else if (param.getType() == Map.class) {
+                                response.getWriter().println("<html><body>");
+                                response.getWriter().println("<h1>Controller c'est un Map, donc on attend un upload de fichier</h1>");
+                                response.getWriter().println("</body></html>");
+                                // si c'est un upload de fichier
+                                String contentType = request.getContentType();
+                                if (contentType != null && contentType.startsWith("multipart/form-data")) {
+                                    response.getWriter().println("<html><body>");
+                                    response.getWriter().println("<h1>Le contentType est okey</h1>");
+                                    response.getWriter().println("</body></html>");
+                                    Map<String, byte[]> fileMap = new HashMap<>();
+                                    try {
+                                        String projectPath = request.getServletContext().getRealPath("/");
+                                        response.getWriter().println("<html><body>");
+                                        response.getWriter().println("<h1>Project Path: " + projectPath + "</h1>");
+                                        response.getWriter().println("</body></html>");
+                                        File uploadsDir = new File(projectPath, "uploads");
+                                        
+                                        if (!uploadsDir.exists()) {
+                                            uploadsDir.mkdirs();
+                                            System.out.println("Dossier uploads créé à: " + uploadsDir.getAbsolutePath());
+                                        }
+
+                                        Collection<Part> parts = request.getParts();
+                                        if (parts.size() <= 0) {
+                                            response.getWriter().println("<html><body>");
+                                            response.getWriter().println("<h1>Pas de fichier uploadé</h1>");
+                                            response.getWriter().println("</body></html>");
+                                            continue;
+                                        }
+                                        for (Part part : parts) {
+                                            response.getWriter().println("<html><body>");
+                                            response.getWriter().println("<h1>Part Name: " + part.getName() + "</h1>");
+                                            response.getWriter().println("<h1>Part Size: " +    part.getSize() + "</h1>");
+                                            response.getWriter().println("</body></html>");
+                                            // On récupère le nom du fichier et son contenu
+                                            // et on le met dans la map
+                                            String fileName = part.getSubmittedFileName();
+                                            if (fileName != null) {
+                                                byte[] fileContent = part.getInputStream().readAllBytes();
+                                                response.getWriter().println("<html><body>");
+                                                response.getWriter().println("<h1>File Name: " + fileName + "</h1>");
+                                                response.getWriter().println("<h1>File Size: " + fileContent.length + "</h1>");
+                                                response.getWriter().println("</body></html>");
+
+                                                File file = new File(uploadsDir, fileName);
+                                                try (var fileOutputStream = java.nio.file.Files.newOutputStream(file.toPath())) {
+                                                    System.out.println("Enregistrement du fichier: " + file.getAbsolutePath());
+                                                    fileOutputStream.write(fileContent);
+                                                }
+                                                fileMap.put(fileName, fileContent);
+                                            }
+                                        }
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                    args[index] = fileMap;
+                                } else {
+                                    response.getWriter().println("<html><body>");
+                                    response.getWriter().println("<h1>Controller c'est un Map, mais pas de fichier upload</h1>");
+                                    response.getWriter().println("</body></html>");
+                                    args[index] = new HashMap<String, String>();
+                                }
                             } else {
                                 // Sinon c'est un objet, utiliser convertObject
                                 if (!isJsonMethod) {
@@ -250,16 +317,12 @@ public class FrontController extends HttpServlet {
                 field.setAccessible(true);
                 String fieldNameWithPrefix = concatenateWithField + field.getName();
                 
-                if (field.getType().isPrimitive() || field.getType() == String.class) {
-                    // Types primitifs et String
-                    Typation typation = new Typation(request.getParameter(fieldNameWithPrefix), field.getType());
-                    field.set(instance, typation.getTypedValue());
-                } else if (field.getType().isPrimitive() || isWrapperType(field.getType())) {
-                    // Types wrapper (Integer, Boolean, etc.)
+                if (field.getType().isPrimitive() || field.getType() == String.class || isWrapperType(field.getType())) {
+                    // Types primitifs, String et types wrapper (Integer, Boolean, etc.)
                     Typation typation = new Typation(request.getParameter(fieldNameWithPrefix), field.getType());
                     field.set(instance, typation.getTypedValue());
                 } else {
-                    // appel recursif pour les objets imbrqués
+                    // appel recursif pour les objets imbriques
                     Param paramField = new Param(fieldNameWithPrefix, field.getType());
                     Object nestedObject = convertObject(paramField, request);
                     if (nestedObject != null) {
