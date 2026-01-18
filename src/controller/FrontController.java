@@ -169,10 +169,21 @@ public class FrontController extends HttpServlet {
                     for (Parameter param : method.getParameters()) {
                         Typation typation;
                         Request requestAnnotation = param.getAnnotation(Request.class);
+                        Session sessionAnnotation = param.getAnnotation(Session.class);
                         // s'il est pas de type map qui demande un Path et un Byte
                         
-                        // s'il est annote
-                        if (requestAnnotation != null) {
+                        if (sessionAnnotation != null && param.getType().equals(Map.class)) {
+                            HttpSession session = request.getSession();
+                            Map<String, Object> sessionMap = new HashMap<>();
+                            Enumeration<String> attributeNames = session.getAttributeNames();
+                            while (attributeNames.hasMoreElements()) {
+                                String attributeName = attributeNames.nextElement();
+                                sessionMap.put(attributeName, session.getAttribute(attributeName));
+                            }
+                            args[index] = sessionMap;
+                        }
+                        // s'il est annote par Request
+                        else if (requestAnnotation != null) {
                             typation = new Typation(request.getParameter(requestAnnotation.value()), param.getType());
                             args[index] = typation.getTypedValue();
                         // s'il est pas annote
@@ -259,6 +270,20 @@ public class FrontController extends HttpServlet {
                     }
                     // on lui donne les arguments
                     retour = method.invoke(controllerInstance, args);
+
+                    for (int i = 0; i < method.getParameters().length; i++) {
+                        Parameter param = method.getParameters()[i];
+                        Session sessionAnnotation = param.getAnnotation(Session.class);
+                        if (sessionAnnotation != null) {
+                            if (param.getType().equals(Map.class)) {
+                                HttpSession session = request.getSession();
+                                Map<String, Object> sessionMap = (Map<String, Object>) args[i];
+                                for (String key : sessionMap.keySet()) {
+                                    session.setAttribute(key, sessionMap.get(key));
+                                }
+                            }
+                        }
+                    }
                 }
             // sinon il n'y a pas de parametre dans la methode
             } else {
